@@ -7,7 +7,7 @@
 //   (a) for a standard geography, looking for arrivals within 0.1/0.2 millis, and/or similar volume.
 //   (b) later maybe some kind of persistence of delta model, more overlapping of the buckets
 // 
-// use the existing FFT/IFFT class as-is b ut two of them.  Assume the update()'s will be in synch, but also count them
+// use the existing FFT/IFFT class as-is but two of them.  Assume the update()s will be in synch, but also count them
 // so there can be an alert.
 // not sure how to dump a flow without buffer overflow so create an extra output stage gain_R
 // add a control to the gui to switch processing on and off (in stages)
@@ -44,12 +44,12 @@ AudioEffectGain_F32          gain_R(audio_settings);                //Applies di
 AudioOutputI2S_F32           i2s_out(audio_settings);               //Digital audio *to* the Tympan AIC.
 
 //Make all of the audio connections
-AudioConnection_F32       patchCord1(i2s_in, 0, noiseReduction_L, 0);  //connect the Left input to the left-algorithm
-AudioConnection_F32       patchCord2(i2s_in, 1, noiseReduction_R, 1);  //connect the Right input to our right-algorithm
+AudioConnection_F32       patchCord1(i2s_in, 0, noiseReduction_L, 0);  //connect the Left input to the left-algorithm(0)
+AudioConnection_F32       patchCord2(i2s_in, 1, noiseReduction_R, 0);  //connect the Right input to our right-algorithm(0)
 AudioConnection_F32       patchCord5(noiseReduction_L, 0, gain_L, 0);   //connect the left-algorithm to left basic gain
-AudioConnection_F32       patchCord6(noiseReduction_R, 1, gain_R, 1);   //connect the right-algorithm to right basic gain
+AudioConnection_F32       patchCord6(noiseReduction_R, 0, gain_R, 0);   //connect the right-algorithm to right basic gain
 AudioConnection_F32       patchCord11(gain_L, 0, i2s_out, 0);         //connect the left gain to the left output
-AudioConnection_F32       patchCord12(gain_R, 1, i2s_out, 1);         //connect the right gain to the right output
+AudioConnection_F32       patchCord12(gain_R, 0, i2s_out, 1);         //connect the right gain to the right output
 
 //Create BLE
 #define USE_BLE (true)

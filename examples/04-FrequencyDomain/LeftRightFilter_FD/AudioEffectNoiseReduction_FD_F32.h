@@ -216,6 +216,42 @@ void AudioEffectNoiseReduction_FD_F32::smoothGainsInTime(void) {
   }
 }
 
+float32_t * keep_complex_2N_buffer_L = 0; 
+int NFFT_L = 0;
+float32_t * keep_complex_2N_buffer_R = 0; 
+int NFFT_R = 0;
+float32_t * keep_complex_2N_buffer_result = 0; 
+int NFFT_result = 0;
+
+bool runComparison(float nearness, float reduce_factor2, float boost_factor2)
+{
+    // keep_complex_2N_buffer_L, keep_complex_2N_buffer_R, keep_complex_2N_buffer_reuslt
+    if (keep_complex_2N_buffer_R && keep_complex_2N_buffer_L && NFFT_L && NFFT_R) {
+       if (!keep_complex_2N_buffer_result) {
+           NFFT_result = min(NFFT_L, NFFT_R);
+           keep_complex_2N_buffer_result = new float[NFFT_result];
+       }
+
+       int num_copy = min(NFFT_result, min(NFFT_L, NFFT_R));
+       if (num_copy) {
+          for (int i = 0; i < num_copy; i++) {
+            float lValue = keep_complex_2N_buffer_L[i];
+            float rValue = keep_complex_2N_buffer_R[i];
+            if ( (1.0-nearness)*rValue < lValue && lValue < rValue*(1.0+nearness)  ) {
+              // this is a near enough value
+              keep_complex_2N_buffer_result[i] = 0.5 * (rValue+lValue) * boost_factor2;
+            }
+            else {
+              // values are too different
+              keep_complex_2N_buffer_result[i] = 0.5 * (rValue+lValue) / reduce_factor2;
+            }
+          }
+          return true;
+       }
+    }
+
+    return false; 
+}
 
 
 class AudioEffectNoiseReduction_FD_F32_L : public AudioEffectNoiseReduction_FD_F32  // AudioFreqDomainBase_FD_F32   //AudioFreqDomainBase_FD_F32 is in Tympan_Library
@@ -286,6 +322,30 @@ void AudioEffectNoiseReduction_FD_F32_L::processAudioFD(float32_t *complex_2N_bu
     complex_2N_buffer[2 * ind]     *= gains[ind]; //real
     complex_2N_buffer[2 * ind + 1] *= gains[ind]; //imaginary
   }  
+
+  if (LR_enabled) {
+    // first time, create the buffer and return the same
+    if (!keep_complex_2N_buffer_L && NFFT)  {
+      NFFT_L = NFFT;
+      keep_complex_2N_buffer_L = new float[NFFT_L]; 
+    }
+    if (keep_complex_2N_buffer_L)  {
+      // always copy in the new buffer
+      for (int i = 0; i<min(NFFT, NFFT_L); i++) {
+        keep_complex_2N_buffer_L[i] = complex_2N_buffer[i];
+      }
+
+      // use the L-R comparison to create a new buffer copied back
+      if (runComparison(0.9f, 20.0f, 1.0f)) {  // keep_complex_2N_buffer_L, keep_complex_2N_buffer_R, keep_complex_2N_buffer_reuslt
+        // copy back from buffer
+        if (keep_complex_2N_buffer_result)  {
+          for (int j = 0; j<min(NFFT, NFFT_result); j++) {
+            complex_2N_buffer[j] = keep_complex_2N_buffer_result[j];
+          }
+        }
+      }
+    }
+  }
 }
 
 //Here is the method we are overriding with our own algorithm...REPLACE THIS WITH WHATEVER YOU WANT!!!!
@@ -322,6 +382,31 @@ void AudioEffectNoiseReduction_FD_F32_R::processAudioFD(float32_t *complex_2N_bu
     complex_2N_buffer[2 * ind]     *= gains[ind]; //real
     complex_2N_buffer[2 * ind + 1] *= gains[ind]; //imaginary
   }  
+
+  if (LR_enabled) {
+    // first time, create the buffer and return the same
+    if (!keep_complex_2N_buffer_R && NFFT)  {
+      NFFT_R = NFFT;
+      keep_complex_2N_buffer_R = new float[NFFT_R]; 
+    }
+    if (keep_complex_2N_buffer_R)  {
+      // always copy in the new buffer
+      for (int i = 0; i<min(NFFT, NFFT_R); i++) {
+        keep_complex_2N_buffer_R[i] = complex_2N_buffer[i];
+      }
+
+      // use the L-R comparison to create a new buffer copied back
+      if (runComparison(0.9f, 20.0f, 1.0f)) {  // keep_complex_2N_buffer_L, keep_complex_2N_buffer_R, keep_complex_2N_buffer_reuslt
+        // copy back from buffer
+        if (keep_complex_2N_buffer_result)  {
+          for (int j = 0; j<min(NFFT, NFFT_result); j++) {
+            complex_2N_buffer[j] = keep_complex_2N_buffer_result[j];
+          }
+        }
+      }
+    }
+  }
+
 }
 
 
